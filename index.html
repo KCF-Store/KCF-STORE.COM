@@ -288,7 +288,6 @@
         <p id="salaWelcome" style="margin-top:10px;color:var(--muted)"></p>
         <div class="sala-grid" aria-label="Menú principal">
           <div class="sala-btn" onclick="navTo('page-productos')">🛒 Productos<span class="sub">Tienda</span></div>
-          <div class="sala-btn" onclick="navTo('page-gratis')">🎁 Productos Gratis<span class="sub">Descargas</span></div>
           <div class="sala-btn" onclick="navTo('page-cuenta')">👤 Mi Cuenta<span class="sub">Perfil</span></div>
           <div class="sala-btn" onclick="navTo('page-pedidos')">📦 Pedidos<span class="sub">Tus compras</span></div>
         </div>
@@ -312,31 +311,6 @@
           </div>
         </div>
         <div style="text-align:center;margin-top:18px"><button class="btn ghost" onclick="navTo('page-sala')">⬅ Volver</button></div>
-      </div>
-    </section>
-
-    <!-- PRODUCTOS GRATIS -->
-    <section id="page-gratis" class="page">
-      <div class="card gratis-hero">
-        <div style="text-align:left;margin-bottom:12px"><button class="btn ghost" onclick="navTo('page-sala')">⬅ Volver</button></div>
-        <div class="gratis-title">🎁 Productos Gratis</div>
-
-        <div class="gratis-list">
-          <div class="gratis-item">
-            <h3>Loader Andre Mods apk)</h3>
-            <p>APK — MediaFire</p>
-<a id="link1" class="link" target="_blank" rel="noopener" 
-   href="https://www.mediafire.com/file/h6wzox2il9bp1r7/ANDREMODSV3.9fix.apk/file">
-   🔗 Descargar
-</a>
-          <div class="gratis-item">
-            <h3>NOE BLAK V5 (APK)</h3>
-            <p>APK — MediaFire</p>
-            <a id="link2" class="link" target="_blank" rel="noopener" href="https://www.mediafire.com/file/kq8p8pe7g325fc8/NOEL_BLACK_V5.apk/file">🔗 Descargar</a>
-          </div>
-
-          <div style="text-align:center;margin-top:12px">
-
       </div>
     </section>
 
@@ -787,5 +761,231 @@
 <div class="rayo"></div>
 <div class="rayo negro"></div>
 <!-- FIN FONDO ROJO CON RAYOS ⚡ -->
-</body>
+
+<!-- INJECTED FIREBASE + APP LOGIC (MODIFIED BY CHATGPT) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, getDocs, query, where, doc, getDoc, updateDoc, setDoc, onSnapshot, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // --- TU FIREBASE CONFIG (ya estaba en tu proyecto) ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyAKrBTAkJGhB9s3E3MExqzj8mtXgKYsWRc",
+    authDomain: "davidstore-51f7f.firebaseapp.com",
+    projectId: "davidstore-51f7f",
+    storageBucket: "davidstore-51f7f.firebasestorage.app",
+    messagingSenderId: "363278778609",
+    appId: "1:363278778609:web:0714ebb6903b931a616950",
+    measurementId: "G-LJL6HXG11E"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Utility: show alerts and simple loader if available
+  function toast(msg){ try{ alert(msg); }catch(e){ console.log(msg); } }
+
+  // Ensure default admin user and default products exist (best-effort; non-destructive)
+  async function ensureDefaults(){
+    try{
+      // admin David / 1030
+      const usuariosRef = collection(db,'usuarios');
+      const q = query(usuariosRef, where('user','==','David'));
+      const r = await getDocs(q);
+      if(r.empty){
+        await addDoc(usuariosRef, { user:'David', pass:'1030', created: new Date().toISOString(), vip:true, saldo:0 });
+        console.log('Admin David creado');
+      } else {
+        // make sure vip true
+        const d = r.docs[0];
+        const data = d.data();
+        if(!data.vip){
+          await updateDoc(doc(db,'usuarios', d.id), { vip:true });
+          console.log('Admin David actualizado a vip');
+        }
+      }
+
+      // default products list: Remote, BrickLin, Geebox, BR MODS, Drip Client
+      const defaults = [
+        { title:'Remote', desc:'Servicio Remote', resetLink:'', prices:{'7':7,'15':15,'30':25} },
+        { title:'BrickLin', desc:'Servicio BrickLin', resetLink:'', prices:{'7':7,'15':15,'30':25} },
+        { title:'Geebox', desc:'Servicio Geebox', resetLink:'', prices:{'7':7,'15':15,'30':25} },
+        { title:'BR MODS', desc:'PREGUNTA PRECIOS AL PRIVADO', resetLink:'https://brmods.net/painel/reset_temp.php?key=8e217bf6ea5accb8fbdac2e79d5ed3e8381fd2347b7c5ea3c9487d2a85c56aec', prices:{'7':7,'15':15,'30':25} },
+        { title:'Drip Client', desc:'PREGUNTA PRECIOS AL PRIVADO', resetLink:'https://brmods.net/painel/reset_temp.php?key=8e217bf6ea5accb8fbdac2e79d5ed3e8381fd2347b7c5ea3c9487d2a85c56aec', prices:{'7':7,'15':15,'30':25} }
+      ];
+      const prodsSnap = await getDocs(collection(db,'productos'));
+      const existing = new Set();
+      prodsSnap.forEach(p=>{ const d = p.data(); if(d && d.title) existing.add(d.title); });
+      for(const def of defaults){
+        if(!existing.has(def.title)){
+          await addDoc(collection(db,'productos'), def);
+          console.log('Producto por defecto creado', def.title);
+        }
+      }
+    }catch(e){ console.error('ensureDefaults error', e); }
+  }
+
+  // UI helpers: try to find elements in the original DOM or create fallbacks
+  const getEl = id => document.getElementById(id);
+  function setText(id, txt){ const el = getEl(id); if(el) el.textContent = txt; }
+
+  // Fill account UI when user logs in
+  async function populateAccountUI(docRef){
+    try{
+      const snap = await getDoc(docRef);
+      if(!snap.exists()) return;
+      const data = snap.data();
+      setText('accName', data.user || '—');
+      setText('accSaldo', (Number(data.saldo||0)).toFixed(2));
+      setText('accCreated', data.created || new Date().toLocaleString());
+      if(data.vip || data.user==='David'){ const adminLink = getEl('adminLink'); if(adminLink) adminLink.style.display='inline-flex'; }
+    }catch(e){ console.error(e); }
+  }
+
+  // Login handler (connects to original login button id 'btnLogin')
+  const btnLogin = getEl('btnLogin');
+  if(btnLogin){
+    btnLogin.addEventListener('click', async ()=>{
+      const user = (getEl('username')||{}).value?.trim() || '';
+      const pass = (getEl('password')||{}).value?.trim() || '';
+      if(!user || !pass) return toast('Completa usuario y contraseña.');
+      try{
+        const usuariosRef = collection(db,'usuarios');
+        const q = query(usuariosRef, where('user','==', user), where('pass','==', pass));
+        const r = await getDocs(q);
+        if(r.empty){ return toast('Usuario o contraseña incorrectos.'); }
+        const udoc = r.docs[0];
+        // save session
+        localStorage.setItem('kcf_user', JSON.stringify({ id: udoc.id, user: udoc.data().user, vip: !!udoc.data().vip }));
+        // populate UI
+        await populateAccountUI(doc(db,'usuarios', udoc.id));
+        // show sala if exists
+        const loginCard = getEl('loginCard'); if(loginCard) loginCard.style.display='none';
+        const sala = getEl('page-sala'); if(sala) sala.classList.add('active');
+        const salaWelcome = getEl('salaWelcome'); if(salaWelcome) salaWelcome.innerText = 'Conectado: ' + udoc.data().user;
+        toast('✅ Bienvenido ' + udoc.data().user);
+      }catch(e){ console.error('login error', e); toast('Error al conectar con Firebase'); }
+    });
+  }
+
+  // Create account handler (btnCreate)
+  const btnCreate = getEl('btnCreate');
+  if(btnCreate){
+    btnCreate.addEventListener('click', async ()=>{
+      const u = prompt('Usuario (texto)'); if(!u) return;
+      const p = prompt('Contraseña'); if(!p) return;
+      try{
+        await addDoc(collection(db,'usuarios'), { user:u, pass:p, created:new Date().toISOString(), vip:false, saldo:0 });
+        toast('Cuenta creada. Inicia sesión con tus datos.');
+      }catch(e){ console.error(e); toast('Error creando cuenta'); }
+    });
+  }
+
+  // Load products into #productsWrap (keeps only desired products if present)
+  async function loadProducts(){
+    const wrap = getEl('productsWrap');
+    if(!wrap) return;
+    wrap.innerHTML = 'Cargando...';
+    try{
+      const prodsSnap = await getDocs(collection(db,'productos'));
+      const wantedTitles = ['Remote','BrickLin','Geebox','BR MODS','Drip Client'];
+      const list = [];
+      prodsSnap.forEach(p=>{ const d = p.data(); if(d && d.title && wantedTitles.includes(d.title)) list.push({ id:p.id, data:d }); });
+      // If none found for any wanted, create client-side placeholders (do not overwrite DB)
+      const missing = wantedTitles.filter(t => !list.some(x=>x.data.title===t));
+      for(const m of missing){
+        list.push({ id: m.toLowerCase()+'-default', data: { title: m, desc: 'PREGUNTA PRECIOS AL PRIVADO', resetLink:'', prices:{'7':7,'15':15,'30':25} } });
+      }
+      wrap.innerHTML='';
+      for(const p of list){
+        const d = p.data;
+        const card = document.createElement('div'); card.className='product-card';
+        const title = document.createElement('div'); title.className='product-title'; title.textContent = d.title;
+        const desc = document.createElement('div'); desc.className='product-desc'; desc.textContent = d.desc || '';
+        const durWrap = document.createElement('div');
+        const durations = [7,15,30];
+        const prices = d.prices || {'7':7,'15':15,'30':25};
+        durations.forEach(days=>{ const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.marginTop='8px';
+          const left = document.createElement('div'); left.innerHTML = `<strong>${days} días</strong>`;
+          const right = document.createElement('div'); right.style.display='flex'; right.style.gap='8px'; const price = prices[String(days)] || 0;
+          const priceEl = document.createElement('div'); priceEl.textContent = '$'+Number(price).toFixed(2);
+          const buyBtn = document.createElement('button'); buyBtn.className='product-cta'; buyBtn.textContent='Comprar';
+          buyBtn.onclick = ()=> purchase(p.id, d.title, days, price);
+          right.appendChild(priceEl); right.appendChild(buyBtn);
+          row.appendChild(left); row.appendChild(right); durWrap.appendChild(row);
+        });
+        const info = document.createElement('div'); info.style.marginTop='10px'; const link = document.createElement('a'); link.className='product-cta'; link.href = d.resetLink || '#'; link.target='_blank'; link.textContent='Reset / Info';
+        info.appendChild(link);
+        card.appendChild(title); card.appendChild(desc); card.appendChild(durWrap); card.appendChild(info);
+        wrap.appendChild(card);
+      }
+    }catch(e){ console.error(e); wrap.innerHTML='Error cargando productos'; }
+  }
+
+  // Purchase flow: check saldo, find key, assign, deduct saldo, create pedido
+  async function purchase(prodId, prodTitle, days, price){
+    const s = localStorage.getItem('kcf_user');
+    if(!s) return toast('Inicia sesión para comprar.');
+    const user = JSON.parse(s);
+    showLoader(true);
+    try{
+      const uref = doc(db,'usuarios', user.id);
+      const usnap = await getDoc(uref);
+      const saldo = Number(usnap.data().saldo||0);
+      if(saldo < price){ toast('Saldo insuficiente'); showLoader(false); return; }
+
+      // find available key in subcollection productos/{prodId}/keys
+      const keysCol = collection(db, `productos/${prodId}/keys`);
+      const kq = query(keysCol, where('duration','==', days), where('used','==', false), orderBy('duration'));
+      const ks = await getDocs(kq);
+      if(ks.empty){ toast('Agotado - sin claves disponibles'); showLoader(false); return; }
+      const keyDoc = ks.docs[0];
+      const keyData = keyDoc.data();
+
+      // mark key used, deduct saldo, create pedido
+      await updateDoc(doc(db, `productos/${prodId}/keys`, keyDoc.id), { used:true, assignedTo:user.id, assignedAt: serverTimestamp() });
+      await updateDoc(uref, { saldo: saldo - price });
+      await addDoc(collection(db,'pedidos'), { userId: user.id, user: user.user, productId: prodId, productTitle: prodTitle, duration: days, price: price, clave: keyData.key, created: serverTimestamp(), status:'completed' });
+
+      // create receipt in UI
+      const receipt = `<div style="color:#021223;background:#eaf6ff;padding:14px;border-radius:10px">
+        <h3>Boleta — ${prodTitle}</h3>
+        <p>Usuario: <strong>${user.user}</strong></p>
+        <p>Duración: <strong>${days} días</strong></p>
+        <p>Precio: <strong>$${price.toFixed(2)}</strong></p>
+        <p>Clave: <code>${keyData.key}</code></p>
+        <p>Fecha: ${new Date().toLocaleString()}</p>
+        <div style="margin-top:8px"><button onclick="window.print()" class="btn">Imprimir / Guardar PDF</button></div>
+      </div>`;
+      toast('Compra exitosa');
+      const pedidosList = getEl('pedidosList');
+      if(pedidosList) pedidosList.innerHTML = receipt;
+      // update displayed saldo
+      setText('accSaldo', (saldo - price).toFixed(2));
+    }catch(e){ console.error('purchase error', e); toast('Error al comprar: '+e); }
+    finally{ showLoader(false); }
+  }
+
+  // Simple loader control (uses #loader if present)
+  function showLoader(v){ const L = document.getElementById('loader'); if(L) L.style.display = v? 'flex':'none'; }
+
+  // Admin page helpers: only accessible via admin.html link already present in document
+  async function adminLoadUsers(){ const ucont = document.getElementById('users'); const sel = document.getElementById('selUser'); if(!ucont||!sel) return; ucont.innerText='Cargando...'; sel.innerHTML=''; const all = await getDocs(collection(db,'usuarios')); ucont.innerHTML=''; all.forEach(u=>{ const d = u.data(); const el = document.createElement('div'); el.innerHTML = `<strong>${d.user}</strong> — $${(d.saldo||0)} (id: ${u.id})`; ucont.appendChild(el); const opt = document.createElement('option'); opt.value = u.id; opt.textContent = d.user; sel.appendChild(opt); }); }
+  async function adminLoadProducts(){ const sel = document.getElementById('selProd'); if(!sel) return; sel.innerHTML=''; const all = await getDocs(collection(db,'productos')); all.forEach(p=>{ const d = p.data(); const opt = document.createElement('option'); opt.value = p.id; opt.textContent = d.title; sel.appendChild(opt); }); }
+
+  // Wire admin buttons if present
+  const btnRec = getEl('btnRec'); if(btnRec){ btnRec.addEventListener('click', async ()=>{ const uid = getEl('selUser').value; const amt = Number(getEl('recAmt').value); if(!uid||!amt||amt<10) return toast('Selecciona usuario y monto mínimo $10'); const uref = doc(db,'usuarios',uid); const snap = await getDoc(uref); const cur = snap.exists()? (snap.data().saldo||0) : 0; await updateDoc(uref,{ saldo: cur + amt }); toast('Recargado $'+amt); adminLoadUsers(); }); }
+  const btnAddProd = getEl('btnAddProd'); if(btnAddProd){ btnAddProd.addEventListener('click', async ()=>{ const t = (getEl('prodTitle')||{}).value?.trim(); if(!t) return toast('Titulo requerido'); const p = { "7": Number((getEl('p7')||{}).value)||7, "15": Number((getEl('p15')||{}).value)||15, "30": Number((getEl('p30')||{}).value)||25 }; await addDoc(collection(db,'productos'), { title:t, desc:(getEl('prodDesc')||{}).value||'', resetLink:(getEl('prodReset')||{}).value||'', prices:p }); toast('Producto creado'); adminLoadProducts(); }); }
+  const btnAddKeys = getEl('btnAddKeys'); if(btnAddKeys){ btnAddKeys.addEventListener('click', async ()=>{ const prod = getEl('selProd').value; const dur = Number(getEl('selDur').value); const lines = (getEl('keysArea')||{}).value.split('\\n').map(s=>s.trim()).filter(Boolean); if(!prod||lines.length===0) return toast('Selecciona producto y pega claves'); for(const k of lines) await addDoc(collection(db,`productos/${prod}/keys`), { duration: dur, key: k, used:false }); toast('Claves agregadas: '+lines.length); getEl('keysArea').value=''; }); }
+  const btnToggle = getEl('btnToggle'); if(btnToggle){ btnToggle.addEventListener('click', async ()=>{ const cfgRef = doc(db,'config','settings'); const snap = await getDoc(cfgRef); const cur = snap.exists()? (snap.data().mantenimiento===true) : false; await setDoc(cfgRef, { mantenimiento: !cur }, { merge:true }); toast('Mantenimiento: '+(!cur)); }); }
+
+  // On load actions
+  window.addEventListener('load', async ()=>{ await ensureDefaults(); loadProducts(); // if user session exists, populate UI
+    const s = localStorage.getItem('kcf_user'); if(s){ try{ const u = JSON.parse(s); await populateAccountUI(doc(db,'usuarios', u.id)); }catch(e){} }
+    // if admin page present, load lists
+    if(location.pathname.endsWith('admin.html') || location.href.includes('admin.html')){ adminLoadUsers(); adminLoadProducts(); }
+  });
+</script>
+<!-- END INJECTED --></body>
 </html>
